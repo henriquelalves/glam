@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::fs::write;
 use std::process::exit;
 use std::fs;
-use json;
+use serde::{Serialize, Deserialize};
 
 mod content;
 mod utils;
@@ -32,9 +32,13 @@ enum Commands {
 		},
 }
 
-#[derive(Clone)]
-#[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 struct GlamObject {
+		packages: Vec<GlamPackage>
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct GlamPackage {
 		name : String,
 		git_repo : String
 }
@@ -117,36 +121,38 @@ fn install_addon(git_repo : &str) {
 		}
 
 		// Find glam object or create one with default configuration
-		let mut glam_objects = read_glam_file();
-		let mut glam_obj : Option<GlamObject> = None;
+		let mut glam_object = read_glam_file();
+		let mut glam_packages = glam_object.packages;
+		let mut target_package : Option<GlamPackage> = None;
 		let name = utils::get_repo_name(git_repo);
 
-		for obj in glam_objects.iter() {
-				if obj.name == name {
-						glam_obj = Some(obj.clone());
+
+		for package in glam_packages.iter() {
+				if package.name == name {
+						target_package = Some(package.clone());
 				}
 		}
 
-		match glam_obj {
+		match target_package {
 				None => {
-						let obj = GlamObject{
+						let package = GlamPackage{
 								git_repo : git_repo.to_string(),
 								name : name.to_string()
 						};
 
-						glam_obj = Some(obj.clone());
-						glam_objects.push(obj);
+						target_package = Some(package.clone());
+						glam_packages.push(package);
 				}
 
 				_ => {}
 		}
 
-		let target_obj = glam_obj.unwrap();
+		let target_package = target_package.unwrap();
 
 		// If glam addon folder doesn't exist, clone project
-		if !Path::new(&format!("{}/.glam.d/{}", root, target_obj.name)).exists() {
+		if !Path::new(&format!("{}/.glam.d/{}", root, target_package.name)).exists() {
 				utils::run_shell_command(
-						&format!("cd {}/.glam.d/ && git clone {} {}", root, target_obj.git_repo, target_obj.name),
+						&format!("cd {}/.glam.d/ && git clone {} {}", root, target_package.git_repo, target_package.name),
 						None
 				);
 				println!("Created addon folder on .glam.d!");
@@ -169,50 +175,25 @@ fn install_addon(git_repo : &str) {
 		);
 
 		// Write .glam file
-		write_glam_file(&glam_objects);
+		glam_object.packages = glam_packages;
+		write_glam_file(&glam_object);
 }
 
 // TODO: Use root folder
-fn read_glam_file() -> Vec<GlamObject> {
+fn read_glam_file() -> GlamObject {
 		if !Path::new("./.glam").exists() {
 				fs::write("./.glam", content::create_glam_file()).expect("Couldn't create .glam file!");
 		}
 
 		let glam_content = fs::read_to_string("./.glam").expect("Couldn't read .glam file!");
-		let glam_obj = json::parse(&glam_content).expect("Couldn't parse .glam file!");
+		let glam_obj : GlamObject = serde_json::from_str(&glam_content).unwrap();
 
-		let packages = &glam_obj["packages"];
-
-		let mut glam_objects = Vec::new();
-
-		println!("{}", packages);
-		for i in packages.entries() {
-				println!("{}", i.1);
-				glam_objects.push(
-						GlamObject{
-								name : i.1["name"].to_string(),
-								git_repo : i.1["git_repo"].to_string()
-						}
-				);
-		}
-
-		return glam_objects;
+		return glam_obj;
 }
 
 // TODO: Use root folder
-fn write_glam_file(glam_objects : &Vec<GlamObject>) {
-		let mut data = json::object!{};
-		data["packages"] = json::object!{};
-
-		for glam_obj in glam_objects {
-				println!("{:?}", glam_obj);
-				data["packages"][&glam_obj.name] = json::object!{};
-				data["packages"][&glam_obj.name]["name"] = glam_obj.clone().name.into();
-				data["packages"][&glam_obj.name]["git_repo"] = glam_obj.clone().git_repo.into();
-		}
-
-		let json_string = json::stringify(data);
-
+fn write_glam_file(glam_object : &GlamObject) {
+		let json_string = serde_json::to_string(glam_object).unwrap();
 		println!("{}", json_string);
 		fs::write("./.glam", json_string).expect("Couldn't create .glam file!");
 }

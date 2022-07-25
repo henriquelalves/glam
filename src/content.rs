@@ -25,8 +25,8 @@ r#"# Glam-specific ignores
 pub fn create_glam_file() -> String {
 		return
 r#"{
-    "packages" : {
-    }
+    "packages" : [
+    ]
 }
 "#.to_string();
 }
