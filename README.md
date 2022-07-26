@@ -4,6 +4,8 @@
 This is **not** a one-size-fits-all kind of solution. I created it because I wanted an easy way to start a Godot project with addons I use often without having to download them via the Asset Manager, and to develop my own Addons while I use them on other projects (hence `glam apply`). If you are interested in other alternatives, check the **Alternatives** section.
 
 ## Installing
+The project only works on UNIX (Linux/Mac) machines. You need `git` installed for the commands to work.
+
 **This is a WIP project**, so I'm not too focused on providing releases; right now, the easiest way to install this project is via `cargo install`. This may change if this project gain traction.
 
 ## Example
