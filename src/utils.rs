@@ -1,5 +1,6 @@
 use colored::Colorize;
 use std::io::Write;
+use std::process::exit;
 
 pub fn log_warning(msg: &str) {
 		let msg = format!("⚠️ {}", msg).yellow();
@@ -19,6 +20,14 @@ pub fn log_info(msg: &str) {
 pub fn log_check(msg: &str) {
 		let msg = format!("✅ {}", msg).green();
 		println!("{}", msg);
+}
+
+pub fn assert_res(res : &Result<String, String>, error_msg : &str) {
+		if res.is_err() {
+				log_error(error_msg);
+				log_error(&format!("{:?}", res));
+				exit(1);
+		}
 }
 
 pub fn get_repo_name(repo: &str) -> String {

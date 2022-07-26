@@ -49,6 +49,7 @@ enum Commands {
 				package_name: String,
 		},
 
+		// TODO: Add "push" flag to automate applying changes, commiting them and pushing
 		/// Apply changes to a package
 		Apply {
 				/// Name of the package to apply changes to

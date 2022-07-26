@@ -207,30 +207,36 @@ fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, 
 				package.commit = res.trim().to_string();
 		} else {
 				utils::log_info("Git checkout to package commit");
-				utils::run_shell_command(
+				let res = utils::run_shell_command(
 						&format!("cd .glam.d/{} && git checkout {}",
 										 package.name,
 										 package.commit),
 						&root,
 						verbose);
+
+				utils::assert_res(&res, "Couldn't checkout repository!");
 		}
 
 		if copy_files {
 				// If project addon folder doesn't exist, create it
-				utils::run_shell_command(
+				let res = utils::run_shell_command(
 						&format!("mkdir -p {}/addons/{}", root, package.name),
 						&root,
 						verbose
 				);
 
+				utils::assert_res(&res, "Couldn't create addons folder!");
+
 				// TODO: use source_folder to copy files from (default: /addons/)
 				// TODO: use target_folder to copy files to (defautl: (root)/)
 				// Copy addon repository content to target folder
-				utils::run_shell_command(
+				let res = utils::run_shell_command(
 						&format!("cp -rf .glam.d/{}/addons/* -t {}/addons/", package.name, root),
 						&root,
 						verbose
 				);
+
+				utils::assert_res(&res, "Couldn't copy files to addons!");
 		}
 }
 
@@ -238,38 +244,47 @@ fn apply_glam_package_files(root : &str, package : &GlamPackage, verbose : bool)
 		// TODO: use source_folder to copy files from (default: /addons/)
 		// TODO: use target_folder to copy files to (defautl: (root)/)
 		// Copy addon repository content to target folder
-		utils::run_shell_command(
+		let res = utils::run_shell_command(
 				&format!("for f in $(ls ./.glam.d/{}/addons/); do cp -rf ./addons/$f ./.glam.d/{}/addons/; done", package.name, package.name),
 				&root,
 				verbose
 		);
+
+		utils::assert_res(&res, "Couldn't copy files to repository!");
 }
 
 fn remove_glam_package_files(root : &str, package : &GlamPackage, verbose : bool) {
 		// TODO: use source_folder to copy files from (default: /addons/)
 		// TODO: use target_folder to copy files to (defautl: (root)/)
 		// Copy addon repository content to target folder
-		utils::run_shell_command(
+		let res = utils::run_shell_command(
 				&format!("for f in $(ls ./.glam.d/{}/addons/); do rm -rf ./addons/$f ; done", package.name),
 				&root,
 				verbose
 		);
 
-		utils::run_shell_command(
+		utils::assert_res(&res, "Couldn't remove files from root addons!");
+
+		let res = utils::run_shell_command(
 				&format!("rm -rf ./.glam.d/{}", package.name),
 				&root,
 				verbose
 		);
+
+		utils::assert_res(&res, "Couldn't copy files to addons!");
 }
 
 pub fn initialize_glam_files(root : &str) {
 		// Create glam.d/ folder if it doesn't exist
 		if !Path::new(&format!("{}/.glam.d/", root)).exists() {
-				utils::run_shell_command(
+				let res = utils::run_shell_command(
 						&format!("mkdir -p {}/.glam.d/", root),
 						&root,
 						false
 				);
+
+				utils::assert_res(&res, "Couldn't create .glam.d/ folder!");
+
 				utils::log_info("Created .glam.d/ folder");
 		}
 
@@ -285,18 +300,22 @@ pub fn initialize_glam_files(root : &str) {
 fn clone_or_fetch_package(root : &str, package : &GlamPackage, verbose : bool) {
 		// If glam package folder doesn't exist, clone project
 		if !Path::new(&format!("{}/.glam.d/{}", root, package.name)).exists() {
-				utils::run_shell_command(
+				let res = utils::run_shell_command(
 						&format!("cd .glam.d/ && git clone {} {} --progress", package.git_repo, package.name),
 						&root,
 						verbose
 				);
+
+				utils::assert_res(&res, "Couldn't clone repository!");
+
 				utils::log_check("Created package folder on .glam.d");
 		} else {
-				utils::run_shell_command(
+				let res = utils::run_shell_command(
 						&format!("cd .glam.d/{} && git fetch origin && git pull", package.name),
 						&root,
 						verbose
 				);
+				utils::assert_res(&res, "Couldn't fetch package repository updates!");
 
 				utils::log_info("Glam package folder already exists, fetched and pulled latest changes");
 		}
