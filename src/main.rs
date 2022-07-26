@@ -22,20 +22,20 @@ enum Commands {
 				/// Package project git
 				git_repo: String,
 				/// Commit to checkout (default is latest)
-				#[clap(short, long, required=false)]
+				#[clap(short, long, required = false, default_value = "")]
 				commit: String,
+				/// Don't copy to target folder
+				#[clap(short, long, required = false, takes_value = false)]
+				no_copy: bool,
 		},
 
-		/// Install packages on .glam file
+		/// Install all packages on .glam file
 		Install {
-				/// Verbose (output subshell commands)
-				#[clap(short, long, takes_value = false)]
-				verbose: bool
 		},
 
+		/// Update a single GLAM package
 		UpdatePackage {
 				/// Name of the package to update (default is all packages)
-				#[clap(short, long)]
 				package_name: String,
 		},
 
@@ -66,18 +66,18 @@ fn main() {
 						commands::initialize(&root);
 				},
 
-				Commands::InstallPackage {git_repo, commit} => {
+				Commands::InstallPackage {git_repo, commit, no_copy} => {
 						let root = commands::search_project_root();
 						commands::check_ignores(&root);
 						commands::initialize_glam_files(&root);
-						commands::install_package(&root, git_repo, commit, cli.verbose);
+						commands::install_package(&root, git_repo, commit, !*no_copy, cli.verbose);
 				},
 
-				Commands::Install { verbose } => {
+				Commands::Install { } => {
 						let root = commands::search_project_root();
 						commands::check_ignores(&root);
 						commands::initialize_glam_files(&root);
-						commands::install(&root, *verbose);
+						commands::install_all_packages(&root, cli.verbose);
 				},
 
 				Commands::UpdatePackage { package_name } => {
