@@ -1,5 +1,5 @@
 [package]
-name = "glam"
+name = "godot-glam"
 version = "0.1.0"
 edition = "2021"
 authors = ["Henrique Alves <henriquelalves@gmail.com>"]
