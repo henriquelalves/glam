@@ -17,7 +17,16 @@ struct GlamObject {
 struct GlamPackage {
 		name : String,
 		git_repo : String,
+		#[serde(default = "default_string")]
 		commit : String,
+		#[serde(default = "default_string")]
+		target_folder : String,
+		#[serde(default = "default_string")]
+		source_folder : String,
+}
+
+fn default_string() -> String {
+		return "".to_string();
 }
 
 pub fn initialize(root : &str) {
@@ -60,14 +69,19 @@ pub fn install_all_packages(root : &str, verbose : bool) {
 		let glam_file_path = format!("{}/.glam", root);
 
 		// Find glam object or create one with default configuration
-		let glam_object = read_glam_file(&glam_file_path);
+		let mut glam_object = read_glam_file(&glam_file_path);
 		let mut glam_packages = glam_object.packages;
 
 		for package in glam_packages.iter_mut() {
+				utils::log_info(&format!("Installing {}...", package.name));
 				clone_or_fetch_package(root, &package, verbose);
 				let commit = package.commit.to_string();
 				install_glam_package(root, &commit, package, false, true, verbose);
 		}
+
+		// Write .glam file
+		glam_object.packages = glam_packages;
+		write_glam_file(&glam_file_path, &glam_object);
 }
 
 pub fn install_package(root : &str, git_repo : &str, commit : &str, copy_files : bool, verbose : bool) {
@@ -79,16 +93,31 @@ pub fn install_package(root : &str, git_repo : &str, commit : &str, copy_files :
 		let mut glam_packages = glam_object.packages;
 
 		let name = utils::get_repo_name(git_repo);
-		let (_, target_package) = find_package(
-				&mut glam_packages,
-				&name,
-				Some(GlamPackage{
-						git_repo : git_repo.to_string(),
-						name : name.to_string(),
-						commit : "".to_string(),
-				}));
+		let source_folder = format!("addons/{}", name);
+		let target_folder = format!("addons/{}", name);
 
-		clone_or_fetch_package(root, &target_package, verbose);
+		let mut package_index = find_package(&glam_packages, &name);
+		match package_index {
+				None => {
+						glam_packages.push(GlamPackage {
+								name,
+								git_repo : git_repo.to_string(),
+								commit: "".to_string(),
+								target_folder,
+								source_folder
+						});
+
+						package_index = Some(glam_packages.len() - 1);
+				}
+
+				_ => {}
+		}
+
+		let package_index = package_index.unwrap();
+		let target_package = &mut glam_packages[package_index];
+
+
+		clone_or_fetch_package(root, target_package, verbose);
 
 		// Update package folder to commit hash
 		install_glam_package(root, commit, target_package, false, copy_files, verbose);
@@ -106,6 +135,7 @@ pub fn update_all_packages(root : &str, verbose : bool) {
 		let mut glam_packages = glam_object.packages;
 
 		for package in glam_packages.iter_mut() {
+				utils::log_info(&format!("Updating {}...", package.name));
 				clone_or_fetch_package(root, &package, verbose);
 				install_glam_package(root, "", package, true, true, verbose);
 		}
@@ -122,10 +152,18 @@ pub fn update_package(root : &str, package_name : &str, verbose : bool) {
 		let mut glam_object = read_glam_file(&glam_file_path);
 		let mut glam_packages = glam_object.packages;
 
-		let (_, mut target_package) = find_package(&mut glam_packages, package_name, None);
+		let package_index = find_package(&glam_packages, package_name);
+
+		if package_index.is_none() {
+				utils::log_error("Package not found!");
+				exit(1);
+		}
+
+		let package_index = package_index.unwrap();
+		let target_package = &mut glam_packages[package_index];
 
 		clone_or_fetch_package(root, &target_package, verbose);
-		install_glam_package(root, "", &mut target_package, true, true, verbose);
+		install_glam_package(root, "", target_package, true, true, verbose);
 
 		// Write .glam file
 		glam_object.packages = glam_packages;
@@ -139,11 +177,20 @@ pub fn remove_package(root : &str, package_name : &str, verbose : bool) {
 
 		let mut glam_object = read_glam_file(&glam_file_path);
 		let mut glam_packages = glam_object.packages;
-		let (index, target_package) = find_package(&mut glam_packages, package_name, None);
 
-		remove_glam_package_files(root, &target_package, verbose);
+		let package_index = find_package(&glam_packages, package_name);
 
-		glam_packages.remove(index);
+		if package_index.is_none() {
+				utils::log_error("Package not found!");
+				exit(1);
+		}
+
+		let package_index = package_index.unwrap();
+		let target_package = &mut glam_packages[package_index];
+
+		remove_glam_package_files(root, target_package, verbose);
+
+		glam_packages.remove(package_index);
 
 		// Write .glam file
 		glam_object.packages = glam_packages;
@@ -157,12 +204,21 @@ pub fn apply_changes(root : &str, package_name : &str, verbose : bool) {
 
 		let glam_object = read_glam_file(&glam_file_path);
 		let mut glam_packages = glam_object.packages;
-		let (_, target_package) = find_package(&mut glam_packages, package_name, None);
 
-		apply_glam_package_files(root, &target_package, verbose);
+		let package_index = find_package(&glam_packages, package_name);
+
+		if package_index.is_none() {
+				utils::log_error("Package not found!");
+				exit(1);
+		}
+
+		let package_index = package_index.unwrap();
+		let target_package = &mut glam_packages[package_index];
+
+		apply_glam_package_files(root, target_package, verbose);
 }
 
-fn find_package<'a>(packages : &'a mut Vec<GlamPackage>, name : &str, new_package : Option<GlamPackage>) -> (usize, &'a mut GlamPackage) {
+fn find_package(packages : &Vec<GlamPackage>, name : &str) -> Option<usize> {
 		let mut package_index = 0;
 		let mut found_package = false;
 
@@ -173,20 +229,11 @@ fn find_package<'a>(packages : &'a mut Vec<GlamPackage>, name : &str, new_packag
 				}
 		}
 
-		if !found_package {
-				match new_package {
-						None => {
-								utils::log_error("Package not found!");
-								exit(1);
-						},
-						Some(package) => {
-								packages.push(package);
-								package_index = packages.len() - 1;
-						}
-				}
+		if found_package {
+				return Some(package_index);
 		}
 
-		return (package_index, &mut packages[package_index]);
+		return None;
 }
 
 fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, update_package : bool, copy_files : bool, verbose : bool) {
@@ -197,6 +244,14 @@ fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, 
 
 		if commit != "" {
 				package.commit = commit.to_string();
+		}
+
+		if package.source_folder == "" {
+				package.source_folder = format!("addons/{}", package.name);
+		}
+
+		if package.target_folder == "" {
+				package.target_folder = format!("addons/{}", package.name);
 		}
 
 		if package.commit == "" {

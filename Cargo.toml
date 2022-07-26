@@ -1,6 +1,6 @@
 [package]
 name = "godot-glam"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Henrique Alves <henriquelalves@gmail.com>"]
 license = "MIT"
@@ -10,7 +10,9 @@ repository = "https://github.com/henriquelalves/glam"
 keywords = ["cli", "godot", "addon", "manager"]
 categories = ["command-line-utilities"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "glam"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "3.0", features = ["derive"] }
