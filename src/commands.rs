@@ -12,7 +12,6 @@ struct GlamObject {
 		packages: Vec<GlamPackage>
 }
 
-// TODO: Add source/target folders
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct GlamPackage {
 		name : String,
@@ -264,7 +263,7 @@ fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, 
 		} else {
 				utils::log_info("Git checkout to package commit");
 				let res = utils::run_shell_command(
-						&format!("cd .glam.d/{} && git checkout {}",
+						&format!("cd .glam.d/{} && git reset --hard {}",
 										 package.name,
 										 package.commit),
 						&root,
@@ -276,18 +275,16 @@ fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, 
 		if copy_files {
 				// If project addon folder doesn't exist, create it
 				let res = utils::run_shell_command(
-						&format!("mkdir -p {}/addons/{}", root, package.name),
+						&format!("mkdir -p {}", package.target_folder),
 						&root,
 						verbose
 				);
 
 				utils::assert_res(&res, "Couldn't create addons folder!");
 
-				// TODO: use source_folder to copy files from (default: /addons/)
-				// TODO: use target_folder to copy files to (defautl: (root)/)
 				// Copy addon repository content to target folder
 				let res = utils::run_shell_command(
-						&format!("cp -rf .glam.d/{}/addons/* -t {}/addons/", package.name, root),
+						&format!("cp -rf .glam.d/{}/{}/* -t {}", package.name, package.source_folder, package.target_folder),
 						&root,
 						verbose
 				);
@@ -297,11 +294,13 @@ fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, 
 }
 
 fn apply_glam_package_files(root : &str, package : &GlamPackage, verbose : bool) {
-		// TODO: use source_folder to copy files from (default: /addons/)
-		// TODO: use target_folder to copy files to (defautl: (root)/)
 		// Copy addon repository content to target folder
 		let res = utils::run_shell_command(
-				&format!("for f in $(ls ./.glam.d/{}/addons/); do cp -rf ./addons/$f ./.glam.d/{}/addons/; done", package.name, package.name),
+				&format!("for f in $(ls {}); do cp -rf {}/$f ./.glam.d/{}/{}; done",
+								 package.target_folder,
+								 package.target_folder,
+								 package.name,
+								 package.source_folder),
 				&root,
 				verbose
 		);
@@ -310,11 +309,9 @@ fn apply_glam_package_files(root : &str, package : &GlamPackage, verbose : bool)
 }
 
 fn remove_glam_package_files(root : &str, package : &GlamPackage, verbose : bool) {
-		// TODO: use source_folder to copy files from (default: /addons/)
-		// TODO: use target_folder to copy files to (defautl: (root)/)
 		// Copy addon repository content to target folder
 		let res = utils::run_shell_command(
-				&format!("for f in $(ls ./.glam.d/{}/addons/); do rm -rf ./addons/$f ; done", package.name),
+				&format!("rm -rf {}", package.target_folder),
 				&root,
 				verbose
 		);
