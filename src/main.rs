@@ -31,16 +31,28 @@ enum Commands {
 
 		/// Install all packages on .glam file
 		Install {
+				// TODO: no_copy flag
+				//// Don't copy to target folder
+				// #[clap(short, long, required = false, takes_value = false)]
+				// no_copy: bool,
 		},
 
 		/// Update a single GLAM package
 		UpdatePackage {
 				/// Name of the package to update (default is all packages)
 				package_name: String,
+				// TODO: no_copy flag
+				//// Don't copy to target folder
+				// #[clap(short, long, required = false, takes_value = false)]
+				// no_copy: bool,
 		},
 
 		/// Update all GLAM packages
 		Update {
+				// TODO: no_copy flag
+				//// Don't copy to target folder
+				// #[clap(short, long, required = false, takes_value = false)]
+				// no_copy: bool,
 		},
 
 		/// Remove a GLAM package

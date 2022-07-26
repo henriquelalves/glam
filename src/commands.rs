@@ -12,6 +12,7 @@ struct GlamObject {
 		packages: Vec<GlamPackage>
 }
 
+// TODO: Add source/target folders
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct GlamPackage {
 		name : String,

@@ -6,7 +6,7 @@ This is **not** a one-size-fits-all kind of solution. I created it because I wan
 ## Installing
 The project only works on UNIX (Linux/Mac) machines. You need `git` installed for the commands to work.
 
-**This is a WIP project**, so I'm not too focused on providing releases; right now, the easiest way to install this project is via `cargo install`. This may change if this project gain traction.
+**This is a WIP project**, so I'm not too focused on providing releases; right now, the easiest way to install this project is via `cargo install godot-glam`. This may change if this project gain traction.
 
 ## Example
 You can initialize your project (with meaningful `.gitignore` and `.gdignore` files) with:
