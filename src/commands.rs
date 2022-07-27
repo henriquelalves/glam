@@ -296,7 +296,15 @@ fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, 
 fn apply_glam_package_files(root : &str, package : &GlamPackage, verbose : bool) {
 		// Copy addon repository content to target folder
 		let res = utils::run_shell_command(
-				&format!("for f in $(ls {}); do cp -rf {}/$f ./.glam.d/{}/{}; done",
+				&format!("mkdir -p .glam.d/{}/{}", package.name, package.source_folder),
+				&root,
+				false
+		);
+
+		utils::assert_res(&res, "Couldn't create source folder!");
+
+		let res = utils::run_shell_command(
+				&format!("for f in $(ls ./{}); do cp -rf ./{}/$f ./.glam.d/{}/{}/$f; done",
 								 package.target_folder,
 								 package.target_folder,
 								 package.name,
@@ -331,7 +339,7 @@ pub fn initialize_glam_files(root : &str) {
 		// Create glam.d/ folder if it doesn't exist
 		if !Path::new(&format!("{}/.glam.d/", root)).exists() {
 				let res = utils::run_shell_command(
-						&format!("mkdir -p {}/.glam.d/", root),
+						"mkdir -p .glam.d",
 						&root,
 						false
 				);
@@ -376,10 +384,10 @@ fn clone_or_fetch_package(root : &str, package : &GlamPackage, verbose : bool) {
 
 fn read_glam_file(file_path : &str) -> GlamObject {
 		if !Path::new(file_path).exists() {
-				fs::write("./.glam", content::create_glam_file()).expect("Couldn't create .glam file!");
+				fs::write(file_path, content::create_glam_file()).expect("Couldn't create .glam file!");
 		}
 
-		let glam_content = fs::read_to_string("./.glam").expect("Couldn't read .glam file!");
+		let glam_content = fs::read_to_string(file_path).expect("Couldn't read .glam file!");
 		let glam_obj : GlamObject = serde_json::from_str(&glam_content).unwrap();
 
 		return glam_obj;
