@@ -31,28 +31,25 @@ enum Commands {
 
 		/// Install all packages on .glam file
 		Install {
-				// TODO: no_copy flag
-				//// Don't copy to target folder
-				// #[clap(short, long, required = false, takes_value = false)]
-				// no_copy: bool,
+				/// Don't copy to target folder
+				#[clap(short, long, required = false, takes_value = false)]
+				no_copy: bool,
 		},
 
 		/// Update a single GLAM package
 		UpdatePackage {
 				/// Name of the package to update (default is all packages)
 				package_name: String,
-				// TODO: no_copy flag
-				//// Don't copy to target folder
-				// #[clap(short, long, required = false, takes_value = false)]
-				// no_copy: bool,
+				/// Don't copy to target folder
+				#[clap(short, long, required = false, takes_value = false)]
+				no_copy: bool,
 		},
 
 		/// Update all GLAM packages
 		Update {
-				// TODO: no_copy flag
-				//// Don't copy to target folder
-				// #[clap(short, long, required = false, takes_value = false)]
-				// no_copy: bool,
+				/// Don't copy to target folder
+				#[clap(short, long, required = false, takes_value = false)]
+				no_copy: bool,
 		},
 
 		/// Remove a GLAM package
@@ -86,25 +83,25 @@ fn main() {
 						commands::install_package(&root, git_repo, commit, !*no_copy, cli.verbose);
 				},
 
-				Commands::Install { } => {
+				Commands::Install { no_copy } => {
 						let root = commands::search_project_root();
 						commands::check_ignores(&root);
 						commands::initialize_glam_files(&root);
-						commands::install_all_packages(&root, cli.verbose);
+						commands::install_all_packages(&root, cli.verbose, !*no_copy);
 				},
 
-				Commands::UpdatePackage { package_name } => {
+				Commands::UpdatePackage { package_name, no_copy } => {
 						let root = commands::search_project_root();
 						commands::check_ignores(&root);
 						commands::initialize_glam_files(&root);
-						commands::update_package(&root, &package_name, cli.verbose);
+						commands::update_package(&root, &package_name, cli.verbose, !*no_copy);
 				},
 
-				Commands::Update {} => {
+				Commands::Update { no_copy } => {
 						let root = commands::search_project_root();
 						commands::check_ignores(&root);
 						commands::initialize_glam_files(&root);
-						commands::update_all_packages(&root, cli.verbose);
+						commands::update_all_packages(&root, cli.verbose, !*no_copy);
 				},
 
 				Commands::RemovePackage {package_name} => {

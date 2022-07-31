@@ -64,7 +64,7 @@ pub fn check_ignores(root : &str) {
 		}
 }
 
-pub fn install_all_packages(root : &str, verbose : bool) {
+pub fn install_all_packages(root : &str, verbose : bool, copy_files : bool) {
 		let glam_file_path = format!("{}/.glam", root);
 
 		// Find glam object or create one with default configuration
@@ -75,7 +75,7 @@ pub fn install_all_packages(root : &str, verbose : bool) {
 				utils::log_info(&format!("Installing {}...", package.name));
 				clone_or_fetch_package(root, &package, verbose);
 				let commit = package.commit.to_string();
-				install_glam_package(root, &commit, package, false, true, verbose);
+				install_glam_package(root, &commit, package, false, copy_files, verbose);
 		}
 
 		// Write .glam file
@@ -126,7 +126,7 @@ pub fn install_package(root : &str, git_repo : &str, commit : &str, copy_files :
 		write_glam_file(&glam_file_path, &glam_object);
 }
 
-pub fn update_all_packages(root : &str, verbose : bool) {
+pub fn update_all_packages(root : &str, verbose : bool, copy_files : bool) {
 		let glam_file_path = format!("{}/.glam", root);
 
 		// Find glam object or create one with default configuration
@@ -136,14 +136,14 @@ pub fn update_all_packages(root : &str, verbose : bool) {
 		for package in glam_packages.iter_mut() {
 				utils::log_info(&format!("Updating {}...", package.name));
 				clone_or_fetch_package(root, &package, verbose);
-				install_glam_package(root, "", package, true, true, verbose);
+				install_glam_package(root, "", package, true, copy_files, verbose);
 		}
 
 		glam_object.packages = glam_packages;
 		write_glam_file(&glam_file_path, &glam_object);
 }
 
-pub fn update_package(root : &str, package_name : &str, verbose : bool) {
+pub fn update_package(root : &str, package_name : &str, verbose : bool, copy_files : bool) {
 		let glam_file_path = format!("{}/.glam", root);
 
 		// Find package to update
@@ -162,7 +162,7 @@ pub fn update_package(root : &str, package_name : &str, verbose : bool) {
 		let target_package = &mut glam_packages[package_index];
 
 		clone_or_fetch_package(root, &target_package, verbose);
-		install_glam_package(root, "", target_package, true, true, verbose);
+		install_glam_package(root, "", target_package, true, copy_files, verbose);
 
 		// Write .glam file
 		glam_object.packages = glam_packages;
