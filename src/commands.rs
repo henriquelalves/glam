@@ -73,7 +73,7 @@ pub fn install_all_packages(root : &str, verbose : bool, copy_files : bool) {
 
 		for package in glam_packages.iter_mut() {
 				utils::log_info(&format!("Installing {}...", package.name));
-				clone_or_fetch_package(root, &package, verbose);
+				clone_or_fetch_package(root, package, verbose);
 				let commit = package.commit.to_string();
 				install_glam_package(root, &commit, package, false, copy_files, verbose);
 		}
@@ -135,7 +135,7 @@ pub fn update_all_packages(root : &str, verbose : bool, copy_files : bool) {
 
 		for package in glam_packages.iter_mut() {
 				utils::log_info(&format!("Updating {}...", package.name));
-				clone_or_fetch_package(root, &package, verbose);
+				clone_or_fetch_package(root, package, verbose);
 				install_glam_package(root, "", package, true, copy_files, verbose);
 		}
 
@@ -161,7 +161,7 @@ pub fn update_package(root : &str, package_name : &str, verbose : bool, copy_fil
 		let package_index = package_index.unwrap();
 		let target_package = &mut glam_packages[package_index];
 
-		clone_or_fetch_package(root, &target_package, verbose);
+		clone_or_fetch_package(root, target_package, verbose);
 		install_glam_package(root, "", target_package, true, copy_files, verbose);
 
 		// Write .glam file
@@ -196,25 +196,39 @@ pub fn remove_package(root : &str, package_name : &str, verbose : bool) {
 		write_glam_file(&glam_file_path, &glam_object);
 }
 
-pub fn apply_changes(root : &str, package_name : &str, verbose : bool) {
+pub fn apply_changes(root : &str, package_name : &str, create_from_addon : &str, verbose : bool) {
 		let glam_file_path = format!("{}/.glam", root);
 
 		// Find package to update
 
-		let glam_object = read_glam_file(&glam_file_path);
+		let mut glam_object = read_glam_file(&glam_file_path);
 		let mut glam_packages = glam_object.packages;
 
-		let package_index = find_package(&glam_packages, package_name);
+		let mut package_index = find_package(&glam_packages, package_name);
 
-		if package_index.is_none() {
+		if package_index.is_none() && create_from_addon == "" {
 				utils::log_error("Package not found!");
 				exit(1);
+		}
+		else if package_index.is_some() && create_from_addon != "" {
+				utils::log_error("Package already exists!");
+				exit(1);
+		}
+		else if create_from_addon != "" {
+				create_new_package_from_addon(root, &mut glam_packages, package_name, create_from_addon, verbose);
+				package_index = Some(glam_packages.len()-1);
 		}
 
 		let package_index = package_index.unwrap();
 		let target_package = &mut glam_packages[package_index];
 
 		apply_glam_package_files(root, target_package, verbose);
+
+		// Save changes
+		if create_from_addon != "" {
+				glam_object.packages = glam_packages;
+				write_glam_file(&glam_file_path, &glam_object);
+		}
 }
 
 fn find_package(packages : &Vec<GlamPackage>, name : &str) -> Option<usize> {
@@ -293,8 +307,22 @@ fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, 
 		}
 }
 
-fn apply_glam_package_files(root : &str, package : &GlamPackage, verbose : bool) {
-		// Copy addon repository content to target folder
+fn create_new_package_from_addon(root : &str, packages : &mut Vec<GlamPackage>, package_name : &str, create_from_addon : &str, verbose : bool) {
+		if !Path::new(&format!("addons/{}", create_from_addon)).exists() {
+				utils::log_error("Addon folder doesn't exist!");
+				exit(1);
+		}
+
+		packages.push(GlamPackage {
+				name: package_name.to_string(),
+				git_repo : "".to_string(),
+				commit: "".to_string(),
+				target_folder: format!("addons/{}",create_from_addon),
+				source_folder: format!("addons/{}",create_from_addon),
+		});
+
+		let package = &packages[packages.len()-1];
+
 		let res = utils::run_shell_command(
 				&format!("mkdir -p .glam.d/{}/{}", package.name, package.source_folder),
 				&root,
@@ -303,6 +331,30 @@ fn apply_glam_package_files(root : &str, package : &GlamPackage, verbose : bool)
 
 		utils::assert_res(&res, "Couldn't create source folder!");
 
+		let res = utils::run_shell_command(
+				&format!("git init .glam.d/{}", package.name),
+				&root,
+				false
+		);
+
+		utils::assert_res(&res, "Couldn't create new repository!");
+
+		let git_ignore_path = Path::new(root).join(&format!(".glam.d/{}/.gitignore", package.name));
+		let git_ignore = git_ignore_path.to_str().unwrap();
+
+		match write(git_ignore, content::create_gitignore_file()) {
+				Ok(_v) => (),
+				Err(_e) => {
+						utils::log_error("There was a problem creating the .gitignore file!");
+						exit(1);
+				}
+		}
+
+		apply_glam_package_files(root, &packages[packages.len()-1], verbose);
+}
+
+fn apply_glam_package_files(root : &str, package : &GlamPackage, verbose : bool) {
+		// Copy addon repository content to target folder
 		let res = utils::run_shell_command(
 				&format!("for f in $(ls ./{}); do cp -rf ./{}/$f ./.glam.d/{}/{}/$f; done",
 								 package.target_folder,
@@ -358,7 +410,7 @@ pub fn initialize_glam_files(root : &str) {
 		}
 }
 
-fn clone_or_fetch_package(root : &str, package : &GlamPackage, verbose : bool) {
+fn clone_or_fetch_package(root : &str, package : &mut GlamPackage, verbose : bool) {
 		// If glam package folder doesn't exist, clone project
 		if !Path::new(&format!("{}/.glam.d/{}", root, package.name)).exists() {
 				let res = utils::run_shell_command(
@@ -371,6 +423,21 @@ fn clone_or_fetch_package(root : &str, package : &GlamPackage, verbose : bool) {
 
 				utils::log_check("Created package folder on .glam.d");
 		} else {
+				if package.git_repo == "" {
+						let res = utils::run_shell_command(
+								&format!("cd .glam.d/{} && git remote get-url origin",
+												 package.name),
+								&root,
+								verbose);
+
+						if res.is_err() {
+								utils::log_error("GLAM Package has no origin yet!");
+								exit(1);
+						}
+
+						package.git_repo = res.unwrap().trim().to_string();
+				}
+
 				let res = utils::run_shell_command(
 						&format!("cd .glam.d/{} && git fetch origin && git pull", package.name),
 						&root,
