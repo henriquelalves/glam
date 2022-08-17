@@ -60,8 +60,8 @@ enum Commands {
 
 		/// Apply changes to a package
 		Apply {
-				/// Name of the package to apply changes to
-				package_name: String,
+				/// Names of the package to apply changes to
+				package_names: Vec<String>,
 				/// Create new package from the specified addon folder (will create a git repo)
 				#[clap(short, long, required = false, default_value = "")]
 				create_from_addon: String,
@@ -113,11 +113,14 @@ fn main() {
 						commands::remove_package(&root, &package_name, cli.verbose);
 				},
 
-				Commands::Apply {package_name, create_from_addon} => {
+				Commands::Apply {package_names, create_from_addon} => {
 						let root = commands::search_project_root();
 						commands::check_ignores(&root);
 						commands::initialize_glam_files(&root);
-						commands::apply_changes(&root, &package_name, &create_from_addon, cli.verbose);
+						for package_name in package_names {
+								commands::apply_changes(&root, &package_name, &create_from_addon, cli.verbose);
+						}
+
 				},
 		}
 }

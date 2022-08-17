@@ -92,8 +92,6 @@ pub fn install_package(root : &str, git_repo : &str, commit : &str, copy_files :
 		let mut glam_packages = glam_object.packages;
 
 		let name = utils::get_repo_name(git_repo);
-		let source_folder = format!("addons/{}", name);
-		let target_folder = format!("addons/{}", name);
 
 		let mut package_index = find_package(&glam_packages, &name);
 		match package_index {
@@ -102,8 +100,8 @@ pub fn install_package(root : &str, git_repo : &str, commit : &str, copy_files :
 								name,
 								git_repo : git_repo.to_string(),
 								commit: "".to_string(),
-								target_folder,
-								source_folder
+								target_folder: "".to_string(),
+								source_folder: "".to_string()
 						});
 
 						package_index = Some(glam_packages.len() - 1);
@@ -114,7 +112,6 @@ pub fn install_package(root : &str, git_repo : &str, commit : &str, copy_files :
 
 		let package_index = package_index.unwrap();
 		let target_package = &mut glam_packages[package_index];
-
 
 		clone_or_fetch_package(root, target_package, verbose);
 
@@ -259,12 +256,25 @@ fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, 
 				package.commit = commit.to_string();
 		}
 
+		// TODO Get all folders on addon
+		let res = utils::run_shell_command(
+				&format!("ls .glam.d/{}/addons", package.name),
+				&root,
+				verbose);
+
+		if res.is_err() {
+				utils::log_error("Couldn't get addon name.");
+				exit(1);
+		}
+
+		let addon_folder = res.unwrap().trim().to_string();
+
 		if package.source_folder == "" {
-				package.source_folder = format!("addons/{}", package.name);
+				package.source_folder = format!("addons/{}", addon_folder);
 		}
 
 		if package.target_folder == "" {
-				package.target_folder = format!("addons/{}", package.name);
+				package.target_folder = format!("addons/{}", addon_folder);
 		}
 
 		if package.commit == "" {
@@ -354,6 +364,20 @@ fn create_new_package_from_addon(root : &str, packages : &mut Vec<GlamPackage>, 
 }
 
 fn apply_glam_package_files(root : &str, package : &GlamPackage, verbose : bool) {
+
+		// Overwrite source folder with target folder
+		let res = utils::run_shell_command(
+				&format!("for f in $(ls .glam.d/{}/{}); do rm -rf .glam.d/{}/{}/$f; done",
+								 package.name,
+								 package.source_folder,
+								 package.name,
+								 package.source_folder),
+				&root,
+				verbose
+		);
+
+		utils::assert_res(&res, "Couldn't remove source folder files!");
+
 		// Copy addon repository content to target folder
 		let res = utils::run_shell_command(
 				&format!("for f in $(ls ./{}); do cp -rf ./{}/$f ./.glam.d/{}/{}/$f; done",
