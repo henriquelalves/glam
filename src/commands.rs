@@ -39,29 +39,61 @@ pub fn initialize(root : &str) {
 						}
 				}
 		}
-
-		let gd_ignore = &format!("{}/.gdignore", &root);
-		if !Path::new(gd_ignore).exists() {
-				match write(gd_ignore, content::create_gdignore_file()) {
-						Ok(_v) => (),
-						Err(_e) => {
-								utils::log_error("There was a problem creating the .gdignore file!");
-								exit(1);
-						}
-				}
-		}
 }
 
-pub fn check_ignores(root : &str) {
+pub fn initialize_glam_files(root : &str) {
+	// Create glam.d/ folder if it doesn't exist
+	if !Path::new(&format!("{}/.glam.d/", root)).exists() {
+			let res = utils::run_shell_command(
+					"mkdir -p .glam.d",
+					&root,
+					false
+			);
+
+			utils::assert_res(&res, "Couldn't create .glam.d/ folder!");
+
+			let gd_ignore = &format!("{}/.glam.d/.gdignore", &root);
+			if !Path::new(gd_ignore).exists() {
+					match write(gd_ignore, content::create_gdignore_file()) {
+							Ok(_v) => (),
+							Err(_e) => {
+									utils::log_error("There was a problem creating the .gdignore file!");
+									exit(1);
+							}
+					}
+			}
+
+			utils::log_info("Created .glam.d/ folder");
+	}
+
+	// Create .glam file if it doesn't exist
+	if !Path::new(&format!("{}/.glam", root)).exists() {
+		fs::write(&format!("{}/.glam",root),
+							content::create_glam_file())
+				.expect("Couldn't create .glam file!");
+		utils::log_info("Created .glam file");
+	}
+}
+
+pub fn check_initialization(root : &str) -> bool {
 		let git_ignore = &format!("{}/.gitignore", &root);
 		if !Path::new(git_ignore).exists() {
 				utils::log_warning(".gitignore file does not exist!");
 		}
 
-		let gd_ignore = &format!("{}/.gdignore", &root);
-		if !Path::new(gd_ignore).exists() {
-				utils::log_warning(".gdignore file does not exist!");
+		let mut ret = true;
+		let glam_file = &format!("{}/.glam", &root);
+		if !Path::new(glam_file).exists() {
+				utils::log_error(".glam file does not exist!");
+				ret = false;
 		}
+
+		let glam_folder = &format!("{}/.glam.d/", &root);
+		if !Path::new(glam_folder).exists() {
+				utils::log_error(".glam.d/ folder does not exist!");
+				ret = false;
+		}
+		return ret;
 }
 
 pub fn install_all_packages(root : &str, verbose : bool, copy_files : bool) {
@@ -84,7 +116,6 @@ pub fn install_all_packages(root : &str, verbose : bool, copy_files : bool) {
 }
 
 pub fn install_package(root : &str, git_repo : &str, commit : &str, copy_files : bool, verbose : bool) {
-
 		let glam_file_path = format!("{}/.glam", root);
 
 		// Find glam object or create one with default configuration
@@ -193,6 +224,7 @@ pub fn remove_package(root : &str, package_name : &str, verbose : bool) {
 		write_glam_file(&glam_file_path, &glam_object);
 }
 
+// TODO: just "apply" don't apply changes to all repositories
 pub fn apply_changes(root : &str, package_name : &str, create_from_addon : &str, verbose : bool) {
 		let glam_file_path = format!("{}/.glam", root);
 
@@ -305,6 +337,8 @@ fn install_glam_package(root : &str, commit : &str, package : &mut GlamPackage, 
 				);
 
 				utils::assert_res(&res, "Couldn't create addons folder!");
+				// TODO: Why this is throwing Err("cp: -t: No such file or directory\n") on mac?
+				println!("cp -rf .glam.d/{}/{}/* -t {}", package.name, package.source_folder, package.target_folder);
 
 				// Copy addon repository content to target folder
 				let res = utils::run_shell_command(
@@ -409,29 +443,6 @@ fn remove_glam_package_files(root : &str, package : &GlamPackage, verbose : bool
 		);
 
 		utils::assert_res(&res, "Couldn't copy files to addons!");
-}
-
-pub fn initialize_glam_files(root : &str) {
-		// Create glam.d/ folder if it doesn't exist
-		if !Path::new(&format!("{}/.glam.d/", root)).exists() {
-				let res = utils::run_shell_command(
-						"mkdir -p .glam.d",
-						&root,
-						false
-				);
-
-				utils::assert_res(&res, "Couldn't create .glam.d/ folder!");
-
-				utils::log_info("Created .glam.d/ folder");
-		}
-
-		// Create .glam file if it doesn't exist
-		if !Path::new(&format!("{}/.glam", root)).exists() {
-				fs::write(&format!("{}/.glam",root),
-									content::create_glam_file())
-						.expect("Couldn't create .glam file!");
-				utils::log_info("Created .glam file");
-		}
 }
 
 fn clone_or_fetch_package(root : &str, package : &mut GlamPackage, verbose : bool) {

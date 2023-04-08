@@ -1,9 +1,10 @@
 pub fn create_gitignore_file() -> String {
 		return
-r#"# Godot-specific ignores
+r#"# Godot 4+ ignores
+.godot/
+
+# Godot 3 ignores
 .import/
-export.cfg
-export_presets.cfg
 
 # Imported translations (automatically generated from CSV files)
 *.translation
@@ -18,8 +19,7 @@ data_*/
 
 pub fn create_gdignore_file() -> String {
 		return
-r#"# Glam-specific ignores
-.glam.d/"#.to_string();
+r#"# Hide this folder from Godot editor"#.to_string();
 }
 
 pub fn create_glam_file() -> String {

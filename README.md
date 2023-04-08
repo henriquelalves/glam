@@ -32,6 +32,10 @@ glam apply GodotTIE
 ## Disclaimer
 **This project is a WIP!** This is a beta release to anyone interested in using or contributing to this project. It may contain bugs that may ruin your project if you don't make any backups or use version-control wisely.
 
+## TODO's
+
+- [ ] Check if project is Godot 3 vs Godot 4 for initialization.
+
 ## Alternatives
 - https://github.com/imjp94/gd-plug
 This is an addon that inspired and works similarly to this CLI tool, but using GDScript (and the Godot executable). I prefered creating the Rust CLI tool though, so I wouldn't need to bootstrap my Godot projects to use it, and to easier extend the tool to my needs.

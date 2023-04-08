@@ -11,6 +11,9 @@ struct Cli {
 		verbose: bool
 }
 
+// TODO: Rename commands
+// replace package to repository?
+
 #[derive(Subcommand)]
 enum Commands {
 		/// Initialize Godot project for GLAM
@@ -80,47 +83,47 @@ fn main() {
 
 				Commands::InstallPackage {git_repo, commit, no_copy} => {
 						let root = commands::search_project_root();
-						commands::check_ignores(&root);
-						commands::initialize_glam_files(&root);
-						commands::install_package(&root, git_repo, commit, !*no_copy, cli.verbose);
+						if commands::check_initialization(&root) {
+							commands::install_package(&root, git_repo, commit, !*no_copy, cli.verbose);
+						}
 				},
 
 				Commands::Install { no_copy } => {
 						let root = commands::search_project_root();
-						commands::check_ignores(&root);
-						commands::initialize_glam_files(&root);
-						commands::install_all_packages(&root, cli.verbose, !*no_copy);
+						if commands::check_initialization(&root) {
+							commands::install_all_packages(&root, cli.verbose, !*no_copy);
+						}
 				},
 
 				Commands::UpdatePackage { package_name, no_copy } => {
 						let root = commands::search_project_root();
-						commands::check_ignores(&root);
-						commands::initialize_glam_files(&root);
-						commands::update_package(&root, &package_name, cli.verbose, !*no_copy);
+						if commands::check_initialization(&root) {
+							commands::update_package(&root, &package_name, cli.verbose, !*no_copy);
+						}
+						
 				},
 
 				Commands::Update { no_copy } => {
 						let root = commands::search_project_root();
-						commands::check_ignores(&root);
-						commands::initialize_glam_files(&root);
-						commands::update_all_packages(&root, cli.verbose, !*no_copy);
+						if commands::check_initialization(&root) {
+							commands::update_all_packages(&root, cli.verbose, !*no_copy);
+						}
 				},
 
 				Commands::RemovePackage {package_name} => {
 						let root = commands::search_project_root();
-						commands::check_ignores(&root);
-						commands::initialize_glam_files(&root);
-						commands::remove_package(&root, &package_name, cli.verbose);
+						if commands::check_initialization(&root) {
+							commands::remove_package(&root, &package_name, cli.verbose);
+						}
 				},
 
 				Commands::Apply {package_names, create_from_addon} => {
 						let root = commands::search_project_root();
-						commands::check_ignores(&root);
-						commands::initialize_glam_files(&root);
-						for package_name in package_names {
+						if commands::check_initialization(&root) {
+							for package_name in package_names {
 								commands::apply_changes(&root, &package_name, &create_from_addon, cli.verbose);
+							}
 						}
-
 				},
 		}
 }
