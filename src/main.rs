@@ -11,8 +11,9 @@ struct Cli {
 		verbose: bool
 }
 
-// TODO: Rename commands
-// replace package to repository?
+// TODO: COMMANDS BROKE
+// TODO: ADD https://github.com/termapps/enquirer https://docs.rs/dialoguer/latest/dialoguer/
+// TODO: ADD MULTIPLE TARGET / SOURCE FOLDERS PER REPOSITORY
 
 #[derive(Subcommand)]
 enum Commands {
@@ -20,8 +21,8 @@ enum Commands {
 		Init {
 		},
 
-		/// Install new GLAM package
-		InstallPackage {
+		/// Add new repository
+		Add {
 				/// Package project git
 				git_repo: String,
 				/// Commit to checkout (default is latest)
@@ -39,8 +40,8 @@ enum Commands {
 				no_copy: bool,
 		},
 
-		/// Update a single GLAM package
-		UpdatePackage {
+		/// Update a single repository. If no repository name is provided, update all repositories
+		Update {
 				/// Name of the package to update (default is all packages)
 				package_name: String,
 				/// Don't copy to target folder
@@ -48,20 +49,13 @@ enum Commands {
 				no_copy: bool,
 		},
 
-		/// Update all GLAM packages
-		Update {
-				/// Don't copy to target folder
-				#[clap(short, long, required = false, takes_value = false)]
-				no_copy: bool,
-		},
-
-		/// Remove a GLAM package
-		RemovePackage {
+		/// Remove a repository
+		Remove {
 				/// Name of the package to remove
 				package_name: String,
 		},
 
-		/// Apply changes to a package
+		/// Apply changes to a repository
 		Apply {
 				/// Names of the package to apply changes to
 				package_names: Vec<String>,
