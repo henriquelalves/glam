@@ -1,6 +1,5 @@
 pub fn create_gitignore_file() -> String {
-		return
-r#"# Godot 4+ ignores
+    return r#"# Godot 4+ ignores
 .godot/
 
 # Godot 3 ignores
@@ -14,19 +13,19 @@ r#"# Godot 4+ ignores
 data_*/
 
 # Glam-specific ignores
-.glam.d/"#.to_string();
+.glam.d/"#
+        .to_string();
 }
 
 pub fn create_gdignore_file() -> String {
-		return
-r#"# Hide this folder from Godot editor"#.to_string();
+    return r#"# Hide this folder from Godot editor"#.to_string();
 }
 
 pub fn create_glam_file() -> String {
-		return
-r#"{
+    return r#"{
     "packages" : [
     ]
 }
-"#.to_string();
+"#
+    .to_string();
 }
