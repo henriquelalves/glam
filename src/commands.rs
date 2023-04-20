@@ -1,4 +1,5 @@
 use inquire::Text;
+use inquire::Select;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::write;
@@ -94,7 +95,7 @@ pub fn check_initialization(root: &str) -> bool {
     return ret;
 }
 
-pub fn install_repositories(root: &str, verbose: bool, copy_files: bool) {
+pub fn install_repositories(root: &str, verbose: bool) {
     let glam_file_path = format!("{}/.glam", root);
 
     // Find glam object or create one with default configuration
@@ -105,7 +106,7 @@ pub fn install_repositories(root: &str, verbose: bool, copy_files: bool) {
         utils::log_info(&format!("Installing {}...", package.name));
         clone_or_fetch_package(root, package, verbose);
         let commit = package.commit.to_string();
-        install_glam_package(root, &commit, package, false, copy_files, verbose);
+        install_glam_package(root, &commit, package, false, true, verbose);
     }
 
     // Write .glam file
@@ -119,31 +120,39 @@ pub fn add_repository(root: &str, git_repo: &str, verbose: bool) {
     let mut glam_object = read_glam_file(&glam_file_path);
     let mut glam_packages = glam_object.packages;
 
-	if find_package_by_repository(&glam_packages, &git_repo).is_some() {
-		utils::log_error("Repository already exists!");
-		exit(1);
-	}
+    if find_package_by_repository(&glam_packages, &git_repo).is_some() {
+        utils::log_error("Repository already exists!");
+        exit(1);
+    }
 
     let default_name: String = utils::get_repo_name(git_repo);
-    let inquire_name = "Name of the repository:";
-    let name = Text::new(inquire_name).with_default(&default_name).with_placeholder(&default_name).prompt().unwrap();
+    let inquire_name = "Name of the addon:";
+    let name = Text::new(inquire_name)
+        .with_default(&default_name)
+        .with_placeholder(&default_name)
+        .prompt()
+        .unwrap();
 
-	if find_package_by_name(&glam_packages, &name).is_some() {
-		utils::log_error("Repository name exists!");
-		exit(1);
-	}
+    if find_package_by_name(&glam_packages, &name).is_some() {
+        utils::log_error("Addon name exists!");
+        exit(1);
+    }
 
     let default_commit = "latest";
     let inquire_commit = "Commit hash of the repository:";
-    let commit = Text::new(inquire_commit).with_default(&default_commit).with_placeholder(&default_commit).prompt().unwrap();
+    let commit = Text::new(inquire_commit)
+        .with_default(&default_commit)
+        .with_placeholder(&default_commit)
+        .prompt()
+        .unwrap();
 
-	glam_packages.push(GlamPackage {
-		name: name.to_string(),
-		git_repo: git_repo.to_string(),
-		commit: commit.to_string(),
-		target_folder: "".to_string(),
-		source_folder: "".to_string(),
-	});
+    glam_packages.push(GlamPackage {
+        name: name.to_string(),
+        git_repo: git_repo.to_string(),
+        commit: commit.to_string(),
+        target_folder: "".to_string(),
+        source_folder: "".to_string(),
+    });
 
     let target_package = glam_packages.last_mut().unwrap();
 
@@ -155,18 +164,28 @@ pub fn add_repository(root: &str, git_repo: &str, verbose: bool) {
     write_glam_file(&glam_file_path, &glam_object);
 }
 
-pub fn update_repositories(root: &str, verbose: bool, copy_files: bool) {
+pub fn update_repository(root: &str, verbose: bool) {
     let glam_file_path = format!("{}/.glam", root);
-
-    // Find glam object or create one with default configuration
     let mut glam_object = read_glam_file(&glam_file_path);
     let mut glam_packages = glam_object.packages;
 
-    for package in glam_packages.iter_mut() {
-        utils::log_info(&format!("Updating {}...", package.name));
-        clone_or_fetch_package(root, package, verbose);
-        install_glam_package(root, "", package, true, copy_files, verbose);
+    if glam_packages.is_empty() {
+        utils::log_error("No addons to update!")
     }
+
+    let options = glam_packages
+        .iter()
+        .map(|x| -> &str { &x.name })
+        .collect::<Vec<&str>>();
+
+    let ans = Select::new("Which addon you want to update?", options).prompt().unwrap();
+
+    let package_index = find_package_by_name(&glam_packages, ans).unwrap();
+    let target_package = &mut glam_packages[package_index];
+
+    utils::log_info(&format!("Updating {}...", target_package.name));
+    clone_or_fetch_package(root, target_package, verbose);
+    install_glam_package(root, "", target_package, true, true, verbose);
 
     glam_object.packages = glam_packages;
     write_glam_file(&glam_file_path, &glam_object);
@@ -199,7 +218,8 @@ pub fn update_package(root: &str, package_name: &str, verbose: bool, copy_files:
 }
 
 // TODO: just "apply" don't apply changes to all repositories
-pub fn apply_changes(root: &str, package_name: &str, create_from_addon: &str, verbose: bool) {
+pub fn apply_changes(root: &str, verbose: bool) {
+    /*
     let glam_file_path = format!("{}/.glam", root);
 
     // Find package to update
@@ -209,13 +229,15 @@ pub fn apply_changes(root: &str, package_name: &str, create_from_addon: &str, ve
 
     let mut package_index = find_package_by_name(&glam_packages, package_name);
 
-    if package_index.is_none() && create_from_addon == "" {
+    if package_index.is_none() {
         utils::log_error("Package not found!");
         exit(1);
-    } else if package_index.is_some() && create_from_addon != "" {
+    } else if package_index.is_some() {
         utils::log_error("Package already exists!");
         exit(1);
-    } else if create_from_addon != "" {
+    }
+
+    else if create_from_addon != "" {
         create_new_package_from_addon(
             root,
             &mut glam_packages,
@@ -236,6 +258,7 @@ pub fn apply_changes(root: &str, package_name: &str, create_from_addon: &str, ve
         glam_object.packages = glam_packages;
         write_glam_file(&glam_file_path, &glam_object);
     }
+     */
 }
 
 fn find_package_by_name(packages: &Vec<GlamPackage>, name: &str) -> Option<usize> {
