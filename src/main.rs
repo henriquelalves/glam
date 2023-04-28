@@ -27,8 +27,9 @@ enum Commands {
 
     /// Install all addons on glam file
     Install {},
-    // Apply changes to a repository
-    //Apply {},
+    
+    /// Apply changes to a repository
+    Apply {},
 }
 
 fn main() {
@@ -62,11 +63,11 @@ fn main() {
             }
         } 
         
-        /*Commands::Apply {} => {
-              let root = commands::search_project_root();
-              if commands::check_initialization(&root) {
-                  commands::apply_changes(&root, cli.verbose);
-              }
-          }*/
+        Commands::Apply {} => {
+            let root = commands::search_project_root();
+            if commands::check_initialization(&root) {
+                commands::apply_changes(&root, cli.verbose);
+            }
+        }
     }
 }

@@ -1,5 +1,5 @@
-use inquire::Text;
 use inquire::Select;
+use inquire::Text;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::write;
@@ -30,6 +30,33 @@ struct GlamPackage {
 
 fn default_string() -> String {
     return "".to_string();
+}
+
+pub fn search_project_root() -> String {
+    let path = PathBuf::from("./");
+    let mut dir = path.canonicalize().unwrap();
+
+    loop {
+        let dir_path = dir.to_str().unwrap();
+        let proj_path = format!("{}/project.godot", dir_path);
+
+        let godot_project = Path::new(&proj_path);
+
+        if godot_project.exists() {
+            break;
+        } else {
+            let parent = dir.parent();
+            if parent.is_none() {
+                utils::log_error("Godot project not found!");
+                exit(1);
+            }
+            dir = dir.parent().unwrap().to_path_buf();
+        }
+    }
+
+    let root = dir.to_str().unwrap().to_string();
+    utils::log_check(&format!("Found root project in: {}", root));
+    return root;
 }
 
 pub fn initialize(root: &str) {
@@ -97,8 +124,6 @@ pub fn check_initialization(root: &str) -> bool {
 
 pub fn install_repositories(root: &str, verbose: bool) {
     let glam_file_path = format!("{}/.glam", root);
-
-    // Find glam object or create one with default configuration
     let mut glam_object = read_glam_file(&glam_file_path);
     let mut glam_packages = glam_object.packages;
 
@@ -109,13 +134,11 @@ pub fn install_repositories(root: &str, verbose: bool) {
         install_glam_package(root, &commit, package, false, true, verbose);
     }
 
-    // Write .glam file
     glam_object.packages = glam_packages;
     write_glam_file(&glam_file_path, &glam_object);
 }
 
 pub fn add_repository(root: &str, git_repo: &str, verbose: bool) {
-    // Create glam object with default configuration
     let glam_file_path = format!("{}/.glam", root);
     let mut glam_object = read_glam_file(&glam_file_path);
     let mut glam_packages = glam_object.packages;
@@ -178,7 +201,9 @@ pub fn update_repository(root: &str, verbose: bool) {
         .map(|x| -> &str { &x.name })
         .collect::<Vec<&str>>();
 
-    let ans = Select::new("Which addon you want to update?", options).prompt().unwrap();
+    let ans = Select::new("Which addon you want to update?", options)
+        .prompt()
+        .unwrap();
 
     let package_index = find_package_by_name(&glam_packages, ans).unwrap();
     let target_package = &mut glam_packages[package_index];
@@ -191,74 +216,31 @@ pub fn update_repository(root: &str, verbose: bool) {
     write_glam_file(&glam_file_path, &glam_object);
 }
 
-pub fn update_package(root: &str, package_name: &str, verbose: bool, copy_files: bool) {
+pub fn apply_changes(root: &str, verbose: bool) {
     let glam_file_path = format!("{}/.glam", root);
-
-    // Find package to update
-
     let mut glam_object = read_glam_file(&glam_file_path);
     let mut glam_packages = glam_object.packages;
 
-    let package_index = find_package_by_name(&glam_packages, package_name);
-
-    if package_index.is_none() {
-        utils::log_error("Package not found!");
-        exit(1);
+    if glam_packages.is_empty() {
+        utils::log_error("No addons to apply changes!")
     }
 
-    let package_index = package_index.unwrap();
+    let options = glam_packages
+        .iter()
+        .map(|x| -> &str { &x.name })
+        .collect::<Vec<&str>>();
+
+    let ans = Select::new("Which addon you want to apply changes?", options)
+        .prompt()
+        .unwrap();
+
+    let package_index = find_package_by_name(&glam_packages, ans).unwrap();
     let target_package = &mut glam_packages[package_index];
 
-    clone_or_fetch_package(root, target_package, verbose);
-    install_glam_package(root, "", target_package, true, copy_files, verbose);
+    apply_package_files(root, target_package, verbose);
 
-    // Write .glam file
     glam_object.packages = glam_packages;
     write_glam_file(&glam_file_path, &glam_object);
-}
-
-// TODO: just "apply" don't apply changes to all repositories
-pub fn apply_changes(root: &str, verbose: bool) {
-    /*
-    let glam_file_path = format!("{}/.glam", root);
-
-    // Find package to update
-
-    let mut glam_object = read_glam_file(&glam_file_path);
-    let mut glam_packages = glam_object.packages;
-
-    let mut package_index = find_package_by_name(&glam_packages, package_name);
-
-    if package_index.is_none() {
-        utils::log_error("Package not found!");
-        exit(1);
-    } else if package_index.is_some() {
-        utils::log_error("Package already exists!");
-        exit(1);
-    }
-
-    else if create_from_addon != "" {
-        create_new_package_from_addon(
-            root,
-            &mut glam_packages,
-            package_name,
-            create_from_addon,
-            verbose,
-        );
-        package_index = Some(glam_packages.len() - 1);
-    }
-
-    let package_index = package_index.unwrap();
-    let target_package = &mut glam_packages[package_index];
-
-    apply_glam_package_files(root, target_package, verbose);
-
-    // Save changes
-    if create_from_addon != "" {
-        glam_object.packages = glam_packages;
-        write_glam_file(&glam_file_path, &glam_object);
-    }
-     */
 }
 
 fn find_package_by_name(packages: &Vec<GlamPackage>, name: &str) -> Option<usize> {
@@ -387,58 +369,7 @@ fn install_glam_package(
     }
 }
 
-fn create_new_package_from_addon(
-    root: &str,
-    packages: &mut Vec<GlamPackage>,
-    package_name: &str,
-    create_from_addon: &str,
-    verbose: bool,
-) {
-    if !Path::new(&format!("addons/{}", create_from_addon)).exists() {
-        utils::log_error("Addon folder doesn't exist!");
-        exit(1);
-    }
-
-    packages.push(GlamPackage {
-        name: package_name.to_string(),
-        git_repo: "".to_string(),
-        commit: "".to_string(),
-        target_folder: format!("addons/{}", create_from_addon),
-        source_folder: format!("addons/{}", create_from_addon),
-    });
-
-    let package = &packages[packages.len() - 1];
-
-    let res = utils::run_shell_command(
-        &format!(
-            "mkdir -p .glam.d/{}/{}",
-            package.name, package.source_folder
-        ),
-        &root,
-        false,
-    );
-
-    utils::assert_result(&res, "Couldn't create source folder!");
-
-    let res = utils::run_shell_command(&format!("git init .glam.d/{}", package.name), &root, false);
-
-    utils::assert_result(&res, "Couldn't create new repository!");
-
-    let git_ignore_path = Path::new(root).join(&format!(".glam.d/{}/.gitignore", package.name));
-    let git_ignore = git_ignore_path.to_str().unwrap();
-
-    match write(git_ignore, content::create_gitignore_file()) {
-        Ok(_v) => (),
-        Err(_e) => {
-            utils::log_error("There was a problem creating the .gitignore file!");
-            exit(1);
-        }
-    }
-
-    apply_glam_package_files(root, &packages[packages.len() - 1], verbose);
-}
-
-fn apply_glam_package_files(root: &str, package: &GlamPackage, verbose: bool) {
+fn apply_package_files(root: &str, package: &GlamPackage, verbose: bool) {
     // Overwrite source folder with target folder
     let res = utils::run_shell_command(
         &format!(
@@ -462,22 +393,6 @@ fn apply_glam_package_files(root: &str, package: &GlamPackage, verbose: bool) {
     );
 
     utils::assert_result(&res, "Couldn't copy files to repository!");
-}
-
-fn remove_glam_package_files(root: &str, package: &GlamPackage, verbose: bool) {
-    // Copy addon repository content to target folder
-    let res =
-        utils::run_shell_command(&format!("rm -rf {}", package.target_folder), &root, verbose);
-
-    utils::assert_result(&res, "Couldn't remove files from root addons!");
-
-    let res = utils::run_shell_command(
-        &format!("rm -rf ./.glam.d/{}", package.name),
-        &root,
-        verbose,
-    );
-
-    utils::assert_result(&res, "Couldn't copy files to addons!");
 }
 
 fn clone_or_fetch_package(root: &str, package: &mut GlamPackage, verbose: bool) {
@@ -539,31 +454,4 @@ fn read_glam_file(file_path: &str) -> GlamObject {
 fn write_glam_file(file_path: &str, glam_object: &GlamObject) {
     let json_string = serde_json::to_string_pretty(glam_object).unwrap();
     fs::write(file_path, json_string).expect("Couldn't create .glam file!");
-}
-
-pub fn search_project_root() -> String {
-    let path = PathBuf::from("./");
-    let mut dir = path.canonicalize().unwrap();
-
-    loop {
-        let dir_path = dir.to_str().unwrap();
-        let proj_path = format!("{}/project.godot", dir_path);
-
-        let godot_project = Path::new(&proj_path);
-
-        if godot_project.exists() {
-            break;
-        } else {
-            let parent = dir.parent();
-            if parent.is_none() {
-                utils::log_error("Godot project not found!");
-                exit(1);
-            }
-            dir = dir.parent().unwrap().to_path_buf();
-        }
-    }
-
-    let root = dir.to_str().unwrap().to_string();
-    utils::log_check(&format!("Found root project in: {}", root));
-    return root;
 }

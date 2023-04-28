@@ -14,12 +14,12 @@ pub fn log_error(msg: &str) {
 }
 
 pub fn log_info(msg: &str) {
-    let msg = format!("ℹ️  {}", msg).blue();
+    let msg = format!("ℹ️  {}", msg).bright_blue();
     println!("{}", msg);
 }
 
 pub fn log_check(msg: &str) {
-    let msg = format!("✅ {}", msg).green();
+    let msg = format!("✅ {}", msg).bright_green();
     println!("{}", msg);
 }
 
