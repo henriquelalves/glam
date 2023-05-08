@@ -10,24 +10,33 @@ The project only works on UNIX (Linux/Mac) machines. You need `git` installed fo
 
 ## Example
 You can initialize your project (with meaningful `.gitignore` and `.gdignore` files) with:
+
 ```
 glam init
 ```
+
+![](init_example.gif)
 
 You can add new addon repositories with:
 ```
 glam add https://github.com/henriquelalves/GodotTIE
 ```
 
+![](add_example.gif)
+
 If you want to use ✨GLAM✨ with a CI/CD, you can `.gitignore` the `addons/` folder and install all addons listed in the `.glam` file with:
 ```
 glam install
 ```
 
+![](install_example.gif)
+
 If you are developing an Addon, you can apply changes made in the addon to their `.glam.d` repository with:
 ```
-glam apply GodotTIE
+glam apply
 ```
+
+![](apply_example.gif)
 
 ## Disclaimer
 **This project is a WIP!** This is a beta release to anyone interested in using or contributing to this project. It may contain bugs that may ruin your project if you don't make any backups or use version-control wisely.
