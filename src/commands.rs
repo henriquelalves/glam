@@ -22,11 +22,16 @@ struct GlamPackage {
     git_repo: String,
     #[serde(default = "default_string")]
     commit: String,
-    #[serde(default = "default_string")]
+    #[serde(default)]
+    links: Vec<Link>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Link {
     target_folder: String,
-    #[serde(default = "default_string")]
     source_folder: String,
 }
+
 
 fn default_string() -> String {
     return "".to_string();
@@ -173,8 +178,7 @@ pub fn add_repository(root: &str, git_repo: &str, verbose: bool) {
         name: name.to_string(),
         git_repo: git_repo.to_string(),
         commit: commit.to_string(),
-        target_folder: "".to_string(),
-        source_folder: "".to_string(),
+        links: [].to_vec(),
     });
 
     let target_package = glam_packages.last_mut().unwrap();
@@ -310,12 +314,13 @@ fn install_glam_package(
 
     let addon_folder = res.unwrap().trim().to_string();
 
-    if package.source_folder == "" {
-        package.source_folder = format!("addons/{}", addon_folder);
-    }
-
-    if package.target_folder == "" {
-        package.target_folder = format!("addons/{}", addon_folder);
+    if package.links.is_empty() {
+        package.links.push(
+            Link {
+                target_folder: format!("addons/{}", addon_folder),
+                source_folder: format!("addons/{}", addon_folder),
+            }
+        );
     }
 
     if package.commit == "latest" {
@@ -341,14 +346,18 @@ fn install_glam_package(
     }
 
     if copy_files {
-        // If project addon folder doesn't exist, create it
-        let res = utils::run_shell_command(
-            &format!("mkdir -p {}", package.target_folder),
-            &root,
-            verbose,
-        );
+        for link in &package.links {
+            // If project addon folder doesn't exist, create it
+            let res = utils::run_shell_command(
+                &format!("mkdir -p {}", link.target_folder),
+                &root,
+                verbose,
+            );
 
-        utils::assert_result(&res, "Couldn't create addons folder!");
+            utils::assert_result(&res, "Couldn't create addons folder!");
+        }
+
+
         // TODO: Why this is throwing Err("cp: -t: No such file or directory\n") on mac?
         // println!(
         //     "cp -rf .glam.d/{}/{}/* -t {}",
@@ -356,43 +365,48 @@ fn install_glam_package(
         // );
 
         // Copy addon repository content to target folder
+        for link in &package.links {
+            let source_folder = &link.source_folder;
+            let target_folder = &link.target_folder;
+
+            let res = utils::run_shell_command(
+                &format!(
+                    "cp -rf .glam.d/{}/{}/* -t {}",
+                    package.name, source_folder, target_folder
+                ),
+                &root,
+                verbose,
+            );
+            utils::assert_result(&res, "Couldn't copy files to addons!");
+        }
+    }
+}
+
+fn apply_package_files(root: &str, package: &GlamPackage, verbose: bool) {
+    for link in &package.links {
+        // Overwrite source folder with target folder
         let res = utils::run_shell_command(
             &format!(
-                "cp -rf .glam.d/{}/{}/* -t {}",
-                package.name, package.source_folder, package.target_folder
+                "for f in $(ls .glam.d/{}/{}); do rm -rf .glam.d/{}/{}/$f; done",
+                package.name, link.source_folder, package.name, link.source_folder
+            ),
+            &root,
+            verbose,
+        );
+        utils::assert_result(&res, "Couldn't overwrite source folder files!");
+
+        // Copy addon repository content to target folder
+        let res = utils::run_shell_command(
+            &format!(
+                "for f in $(ls ./{}); do cp -rf ./{}/$f ./.glam.d/{}/{}/$f; done",
+                link.target_folder, link.target_folder, package.name, link.source_folder
             ),
             &root,
             verbose,
         );
 
-        utils::assert_result(&res, "Couldn't copy files to addons!");
+        utils::assert_result(&res, "Couldn't copy files to repository!");
     }
-}
-
-fn apply_package_files(root: &str, package: &GlamPackage, verbose: bool) {
-    // Overwrite source folder with target folder
-    let res = utils::run_shell_command(
-        &format!(
-            "for f in $(ls .glam.d/{}/{}); do rm -rf .glam.d/{}/{}/$f; done",
-            package.name, package.source_folder, package.name, package.source_folder
-        ),
-        &root,
-        verbose,
-    );
-
-    utils::assert_result(&res, "Couldn't remove source folder files!");
-
-    // Copy addon repository content to target folder
-    let res = utils::run_shell_command(
-        &format!(
-            "for f in $(ls ./{}); do cp -rf ./{}/$f ./.glam.d/{}/{}/$f; done",
-            package.target_folder, package.target_folder, package.name, package.source_folder
-        ),
-        &root,
-        verbose,
-    );
-
-    utils::assert_result(&res, "Couldn't copy files to repository!");
 }
 
 fn clone_or_fetch_package(root: &str, package: &mut GlamPackage, verbose: bool) {
