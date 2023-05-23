@@ -1,5 +1,4 @@
-use inquire::Select;
-use inquire::Text;
+use inquire::{Select, Text, MultiSelect};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::write;
@@ -186,7 +185,6 @@ pub fn add_repository(root: &str, git_repo: &str, verbose: bool) {
     clone_or_fetch_package(root, target_package, verbose);
     install_glam_package(root, &commit, target_package, false, true, verbose);
 
-    // Write .glam file
     glam_object.packages = glam_packages;
     write_glam_file(&glam_file_path, &glam_object);
 }
@@ -204,6 +202,11 @@ pub fn update_repository(root: &str, verbose: bool) {
         .iter()
         .map(|x| -> &str { &x.name })
         .collect::<Vec<&str>>();
+
+    if options.len() == 0 {
+        utils::log_error("No repository to update!");
+        exit(1);
+    }
 
     let ans = Select::new("Which addon you want to update?", options)
         .prompt()
@@ -312,15 +315,36 @@ fn install_glam_package(
         exit(1);
     }
 
-    let addon_folder = res.unwrap().trim().to_string();
-
     if package.links.is_empty() {
-        package.links.push(
-            Link {
-                target_folder: format!("addons/{}", addon_folder),
-                source_folder: format!("addons/{}", addon_folder),
+        let addon_folders = res.unwrap().trim().to_string();
+        let folders = addon_folders.split("\n").collect::<Vec<&str>>();
+
+        if folders.len() == 1 {
+            package.links.push(
+                Link {
+                    target_folder: format!("addons/{}", folders[0]),
+                    source_folder: format!("addons/{}", folders[0]),
+                }
+            );
+        } else {
+            let ans = MultiSelect::new("Which addons you'd like to import?", folders)
+                .prompt()
+                .unwrap();
+
+            if ans.len() == 0 {
+                utils::log_error("No addon selected!");
+                exit(0);
             }
-        );
+
+            for folder in ans {
+                package.links.push(
+                    Link {
+                        target_folder: format!("addons/{}", folder),
+                        source_folder: format!("addons/{}", folder),
+                    }
+                );
+            }
+        }
     }
 
     if package.commit == "latest" {
@@ -422,7 +446,6 @@ fn clone_or_fetch_package(root: &str, package: &mut GlamPackage, verbose: bool) 
         );
 
         utils::assert_result(&res, "Couldn't clone repository!");
-
         utils::log_check("Created package folder on .glam.d");
     } else {
         if package.git_repo == "" {
@@ -449,7 +472,6 @@ fn clone_or_fetch_package(root: &str, package: &mut GlamPackage, verbose: bool) 
             verbose,
         );
         utils::assert_result(&res, "Couldn't fetch package repository updates!");
-
         utils::log_info("Glam package folder already exists, fetched and pulled latest changes");
     }
 }
