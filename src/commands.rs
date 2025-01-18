@@ -189,6 +189,62 @@ pub fn add_repository(root: &str, git_repo: &str, verbose: bool) {
     write_glam_file(&glam_file_path, &glam_object);
 }
 
+pub fn create_addon(root: &str, verbose: bool) {
+    let glam_file_path = format!("{}/.glam", root);
+    let mut glam_object = read_glam_file(&glam_file_path);
+    let mut glam_packages = glam_object.packages;
+
+    let folders = list_addons(root, verbose);
+    
+    let addon_name = Select::new("Which addon you'll create a repository?", folders)
+        .prompt()
+        .unwrap();
+
+    if find_package_by_link(&glam_packages, &addon_name).is_some() {
+        utils::log_error("There is a repository linked to that addon already!");
+        exit(1);
+    }
+
+    let repo_name = Text::new("Name of the repository:")
+        .with_default(&addon_name)
+        .with_placeholder(&addon_name)
+        .prompt()
+        .unwrap();
+    
+    let res = utils::run_shell_command(
+        &format!("mkdir -p .glam.d/{}/addons/{}", repo_name, addon_name),
+        &root,
+        verbose
+    );
+
+    utils::assert_result(&res, "Repository folder failed to be created!");
+
+    let res = utils::run_shell_command(
+        &format!("cd .glam.d/{} && git init", repo_name),
+        &root,
+        verbose,
+    );
+
+    utils::assert_result(&res, "Repository failed to be initialized!");
+    
+    glam_packages.push(GlamPackage {
+        name: repo_name.to_string(),
+        git_repo: "".to_string(),
+        commit: "".to_string(),
+        links: [Link{
+            target_folder: format!("addons/{}", addon_name),
+            source_folder: format!("addons/{}", addon_name),
+        }].to_vec(),
+    });    
+    
+    glam_object.packages = glam_packages;
+    write_glam_file(&glam_file_path, &glam_object);
+
+    let target_package = glam_object.packages.last_mut().unwrap();
+    
+    apply_package_files(&root, &target_package, verbose);
+}
+
 pub fn update_repository(root: &str, verbose: bool) {
     let glam_file_path = format!("{}/.glam", root);
     let mut glam_object = read_glam_file(&glam_file_path);
@@ -250,6 +306,26 @@ pub fn apply_changes(root: &str, verbose: bool) {
     write_glam_file(&glam_file_path, &glam_object);
 }
 
+fn find_package_by_link(packages: &Vec<GlamPackage>, addons_folder: &str) -> Option<usize> {
+    let mut package_index = 0;
+    let mut found_package = false;
+
+    for (i, package) in packages.iter().enumerate() {
+        for (_j, link) in package.links.iter().enumerate() {
+            if link.target_folder == addons_folder {
+                package_index = i;
+                found_package = true;
+            }
+        }
+    }
+
+    if found_package {
+        return Some(package_index);
+    }
+
+    return None;    
+}
+
 fn find_package_by_name(packages: &Vec<GlamPackage>, name: &str) -> Option<usize> {
     let mut package_index = 0;
     let mut found_package = false;
@@ -284,6 +360,21 @@ fn find_package_by_repository(packages: &Vec<GlamPackage>, repo: &str) -> Option
     }
 
     return None;
+}
+
+fn list_addons(root: &str, verbose: bool) -> Vec<String> {
+    let res = utils::run_shell_command(
+        &format!("ls addons"),
+        &root,
+        verbose,
+    );
+
+    utils::assert_result(&res, "Addons folder doesn't exist!");
+
+    let addon_folders = res.unwrap().trim().to_string();
+    let split = addon_folders.split("\n").collect::<Vec<&str>>();
+    
+    return split.iter().map(|s| s.to_string()).collect();
 }
 
 fn install_glam_package(

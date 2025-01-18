@@ -22,6 +22,10 @@ enum Commands {
         git_repo: String,
     },
 
+    /// Create a repository from an existing addon
+    Create {
+    },
+
     /// Update a repository
     Update {},
 
@@ -49,6 +53,13 @@ fn main() {
             }
         }
 
+        Commands::Create { } => {
+            let root = commands::search_project_root();
+            if commands::check_initialization(&root) {
+                commands::create_addon(&root, cli.verbose);
+            }
+        }
+        
         Commands::Update {} => {
             let root = commands::search_project_root();
             if commands::check_initialization(&root) {
